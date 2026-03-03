@@ -10,7 +10,7 @@ from services.ppt_summarizer import build_exec_summary, extract_slide_content, g
 
 HOST = "0.0.0.0"
 PORT = 5000
-MAX_FILE_SIZE = 25 * 1024 * 1024
+MAX_FILE_SIZE = 30 * 1024 * 1024
 
 
 def render_index(error: str = "") -> bytes:
@@ -67,7 +67,7 @@ class AppHandler(BaseHTTPRequestHandler):
 
         content_length = int(self.headers.get("Content-Length", "0"))
         if content_length > MAX_FILE_SIZE:
-            self._send_html_error("File is too large. Limit is 25MB.", status=HTTPStatus.REQUEST_ENTITY_TOO_LARGE)
+            self._send_html_error("File is too large. Limit is 30MB.", status=HTTPStatus.REQUEST_ENTITY_TOO_LARGE)
             return
 
         content_type = self.headers.get("Content-Type", "")
