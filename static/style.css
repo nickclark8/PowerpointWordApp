@@ -18,6 +18,7 @@ body {
   border-radius: 14px;
   box-shadow: 0 10px 30px rgba(31, 41, 55, 0.08);
   padding: 2rem;
+  border-top: 6px solid #1d4ed8;
 }
 
 h1 {
@@ -30,11 +31,18 @@ form {
   margin-top: 1rem;
 }
 
-input[type="file"] {
+input[type="file"],
+textarea {
   border: 1px dashed #9ca3af;
   border-radius: 10px;
   padding: 0.7rem;
   background: #f9fafb;
+  font: inherit;
+}
+
+textarea {
+  border-style: solid;
+  resize: vertical;
 }
 
 button {
@@ -51,8 +59,7 @@ button:hover {
   background: #1d4ed8;
 }
 
-.alerts {
-  list-style: none;
+.error {
   padding: 0.8rem;
   border-radius: 10px;
   background: #fef2f2;

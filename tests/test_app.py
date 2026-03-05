@@ -7,7 +7,12 @@ from io import BytesIO
 from zipfile import ZIP_DEFLATED, ZipFile
 
 from app import render_index
-from services.ppt_summarizer import build_exec_summary, extract_slide_content, generate_exec_docx
+from services.ppt_summarizer import (
+    build_business_case,
+    extract_slide_content,
+    extract_supporting_text,
+    generate_business_case_docx,
+)
 
 
 def _build_fake_pptx() -> bytes:
@@ -23,16 +28,17 @@ def _build_fake_pptx() -> bytes:
     return out.getvalue()
 
 
-def test_extract_and_summarize_and_docx_generation():
+def test_extract_and_build_business_case_and_docx_generation():
     slides = extract_slide_content(_build_fake_pptx())
     assert len(slides) == 2
     assert slides[0].title == "Q4 Business Review"
 
-    summary = build_exec_summary(slides, "demo.pptx")
-    assert summary.source_name == "demo.pptx"
-    assert summary.key_highlights
+    business_case = build_business_case(slides, "demo.pptx", knowledge_context="Align to FY strategic priority")
+    assert business_case.source_name == "demo.pptx"
+    assert business_case.sections
+    assert any(section.title == "Financial Impact" for section in business_case.sections)
 
-    docx_bytes = generate_exec_docx(summary)
+    docx_bytes = generate_business_case_docx(business_case)
     assert docx_bytes.startswith(b"PK")
     assert len(docx_bytes) > 500
 
@@ -40,4 +46,19 @@ def test_extract_and_summarize_and_docx_generation():
 def test_render_index_contains_form():
     html = render_index().decode("utf-8")
     assert "<form" in html
-    assert "PowerPoint to Executive Word Summary" in html
+    assert "PowerPoint to Branded Business Case" in html
+    assert 'name="knowledge_file"' in html
+
+
+def test_extract_supporting_text_from_txt_and_docx():
+    txt = extract_supporting_text(b"Strategic priority: improve retention", "txt")
+    assert "improve retention" in txt
+
+    minimal_docx = BytesIO()
+    with ZipFile(minimal_docx, "w", compression=ZIP_DEFLATED) as zf:
+        zf.writestr(
+            "word/document.xml",
+            """<?xml version='1.0' encoding='UTF-8'?><w:document xmlns:w='w' xmlns:a='a'><w:body><a:t>Board objective</a:t><a:t>Reduce churn by 2%</a:t></w:body></w:document>""",
+        )
+    docx_text = extract_supporting_text(minimal_docx.getvalue(), "docx")
+    assert "Board objective" in docx_text
