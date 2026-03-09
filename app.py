@@ -2,11 +2,15 @@ from __future__ import annotations
 
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from io import BytesIO
 from pathlib import Path
 import cgi
 
-from services.ppt_summarizer import build_exec_summary, extract_slide_content, generate_exec_docx
+from services.ppt_summarizer import (
+    build_business_case,
+    extract_slide_content,
+    extract_supporting_text,
+    generate_business_case_docx,
+)
 
 HOST = "0.0.0.0"
 PORT = 5000
@@ -20,18 +24,25 @@ def render_index(error: str = "") -> bytes:
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>PowerPoint Executive Summarizer</title>
+    <title>Business Case Copilot</title>
     <link rel="stylesheet" href="/static/style.css" />
   </head>
   <body>
     <main class="card">
-      <h1>PowerPoint to Executive Word Summary</h1>
-      <p>Upload a <strong>.pptx</strong> file and download an executive-style <strong>.docx</strong> summary.</p>
+      <h1>PowerPoint to Branded Business Case</h1>
+      <p>Upload a <strong>.pptx</strong> and generate a board-ready <strong>.docx</strong> business case.</p>
       {error_html}
       <form action="/summarize" method="post" enctype="multipart/form-data">
         <label for="presentation">PowerPoint File</label>
         <input id="presentation" type="file" name="presentation" accept=".pptx" required />
-        <button type="submit">Generate Executive Word Document</button>
+
+        <label for="knowledge_context">Optional knowledge/context input</label>
+        <textarea id="knowledge_context" name="knowledge_context" rows="4" placeholder="Paste strategic context, assumptions, or key facts to include."></textarea>
+
+        <label for="knowledge_file">Optional knowledge document (.txt or .docx)</label>
+        <input id="knowledge_file" type="file" name="knowledge_file" accept=".txt,.docx" />
+
+        <button type="submit">Generate Branded Word Document</button>
       </form>
     </main>
   </body>
@@ -77,8 +88,10 @@ class AppHandler(BaseHTTPRequestHandler):
 
         form = cgi.FieldStorage(fp=self.rfile, headers=self.headers, environ={"REQUEST_METHOD": "POST"})
         file_item = form["presentation"] if "presentation" in form else None
+        knowledge_context = form.getvalue("knowledge_context", "")
+        knowledge_file = form["knowledge_file"] if "knowledge_file" in form else None
 
-        if not file_item or not getattr(file_item, "filename", ""):
+        if file_item is None or not getattr(file_item, "filename", ""):
             self._send_html_error("Please choose a PowerPoint file (.pptx).")
             return
 
@@ -98,10 +111,24 @@ class AppHandler(BaseHTTPRequestHandler):
             self._send_html_error("No readable content found in this presentation.")
             return
 
-        summary = build_exec_summary(slides, source_name=filename)
-        docx_bytes = generate_exec_docx(summary)
+        supporting_text = ""
+        if knowledge_file is not None and getattr(knowledge_file, "filename", ""):
+            knowledge_filename = Path(knowledge_file.filename).name
+            knowledge_extension = knowledge_filename.rsplit(".", 1)[-1].lower() if "." in knowledge_filename else ""
+            if knowledge_extension not in {"txt", "docx"}:
+                self._send_html_error("Unsupported knowledge file format. Please upload .txt or .docx.")
+                return
+            try:
+                supporting_text = extract_supporting_text(knowledge_file.file.read(), knowledge_extension)
+            except Exception:
+                self._send_html_error("Could not parse the knowledge file. Ensure it is a valid .txt or .docx.")
+                return
 
-        output_name = f"{Path(filename).stem}_executive_summary.docx"
+        merged_context = "\n".join(chunk for chunk in [knowledge_context.strip(), supporting_text.strip()] if chunk).strip()
+        business_case = build_business_case(slides, source_name=filename, knowledge_context=merged_context)
+        docx_bytes = generate_business_case_docx(business_case)
+
+        output_name = f"{Path(filename).stem}_business_case.docx"
         self.send_response(HTTPStatus.OK)
         self.send_header(
             "Content-Type",
