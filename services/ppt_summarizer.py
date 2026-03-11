@@ -9,7 +9,8 @@ from typing import Iterable
 from xml.sax.saxutils import escape
 from zipfile import ZIP_DEFLATED, ZipFile
 
-TEXT_PATTERN = re.compile(r"<a:t>(.*?)</a:t>", flags=re.DOTALL)
+SLIDE_TEXT_PATTERN = re.compile(r"<a:t>(.*?)</a:t>", flags=re.DOTALL)
+DOCX_TEXT_PATTERN = re.compile(r"<w:t[^>]*>(.*?)</w:t>", flags=re.DOTALL)
 TAG_STRIP_PATTERN = re.compile(r"<[^>]+>")
 
 
@@ -42,7 +43,15 @@ def _normalize_whitespace(value: str) -> str:
 def _read_slide_texts(xml_content: str) -> list[str]:
     return [
         _normalize_whitespace(chunk)
-        for chunk in TEXT_PATTERN.findall(xml_content)
+        for chunk in SLIDE_TEXT_PATTERN.findall(xml_content)
+        if _normalize_whitespace(chunk)
+    ]
+
+
+def _read_docx_texts(xml_content: str) -> list[str]:
+    return [
+        _normalize_whitespace(chunk)
+        for chunk in DOCX_TEXT_PATTERN.findall(xml_content)
         if _normalize_whitespace(chunk)
     ]
 
@@ -82,7 +91,7 @@ def extract_supporting_text(file_bytes: bytes, extension: str) -> str:
             if "word/document.xml" not in archive.namelist():
                 return ""
             doc_xml = archive.read("word/document.xml").decode("utf-8", errors="ignore")
-            return "\n".join(_read_slide_texts(doc_xml)).strip()
+            return "\n".join(_read_docx_texts(doc_xml)).strip()
 
     raise ValueError("Unsupported supporting document format")
 

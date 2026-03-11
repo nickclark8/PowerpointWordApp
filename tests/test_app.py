@@ -58,7 +58,7 @@ def test_extract_supporting_text_from_txt_and_docx():
     with ZipFile(minimal_docx, "w", compression=ZIP_DEFLATED) as zf:
         zf.writestr(
             "word/document.xml",
-            """<?xml version='1.0' encoding='UTF-8'?><w:document xmlns:w='w' xmlns:a='a'><w:body><a:t>Board objective</a:t><a:t>Reduce churn by 2%</a:t></w:body></w:document>""",
+            """<?xml version='1.0' encoding='UTF-8'?><w:document xmlns:w='http://schemas.openxmlformats.org/wordprocessingml/2006/main'><w:body><w:p><w:r><w:t>Board objective</w:t></w:r></w:p><w:p><w:r><w:t>Reduce churn by 2%</w:t></w:r></w:p></w:body></w:document>""",
         )
     docx_text = extract_supporting_text(minimal_docx.getvalue(), "docx")
     assert "Board objective" in docx_text

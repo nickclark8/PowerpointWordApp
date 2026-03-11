@@ -91,7 +91,7 @@ class AppHandler(BaseHTTPRequestHandler):
         knowledge_context = form.getvalue("knowledge_context", "")
         knowledge_file = form["knowledge_file"] if "knowledge_file" in form else None
 
-        if not file_item or not getattr(file_item, "filename", ""):
+        if file_item is None or not getattr(file_item, "filename", ""):
             self._send_html_error("Please choose a PowerPoint file (.pptx).")
             return
 
@@ -112,7 +112,7 @@ class AppHandler(BaseHTTPRequestHandler):
             return
 
         supporting_text = ""
-        if knowledge_file and getattr(knowledge_file, "filename", ""):
+        if knowledge_file is not None and getattr(knowledge_file, "filename", ""):
             knowledge_filename = Path(knowledge_file.filename).name
             knowledge_extension = knowledge_filename.rsplit(".", 1)[-1].lower() if "." in knowledge_filename else ""
             if knowledge_extension not in {"txt", "docx"}:
